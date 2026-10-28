@@ -23,6 +23,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "908a2a35-b85d-4a6b-b361-f2d69a36516b"
+      }
+    },
+    "owner": "yonqi",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/908a2a35-b85d-4a6b-b361-f2d69a36516b"
     }
   }
 }

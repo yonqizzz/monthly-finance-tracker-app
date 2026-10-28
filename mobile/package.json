@@ -20,6 +20,7 @@
     "expo-file-system": "~57.0.7",
     "expo-image-picker": "~57.0.15",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.26",
     "lucide-react-native": "^1.40.0",
     "nativewind": "^5.0.0-preview.2",
     "react": "19.2.3",
