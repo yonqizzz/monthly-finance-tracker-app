@@ -2,6 +2,7 @@
   "cli": { "version": ">= 5.0.0" },
   "build": {
     "preview": {
+      "channel": "preview",
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {

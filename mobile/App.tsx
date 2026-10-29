@@ -3226,7 +3226,9 @@ function CustomDrawerContent(props: any) {
       <View className="flex-row items-center justify-between px-4 py-6 border-b border-border mb-2">
         <View className="flex-row items-center gap-2.5">
           <Landmark color={c.foreground} size={24} />
-          <Text className="text-lg font-bold text-foreground">Finances</Text>
+          <Text className="text-lg font-bold text-foreground">
+            Finances Tracker
+          </Text>
         </View>
         <TouchableOpacity
           activeOpacity={1}
