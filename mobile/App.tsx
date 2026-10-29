@@ -120,6 +120,7 @@ import {
 } from "@/components/ui/actionsheet";
 import { fetch as expoFetch } from "expo/fetch";
 import { File } from "expo-file-system";
+import { StatusBar } from "expo-status-bar";
 
 // ---------------------------------------------------------------------------
 // Configuration & Constants
@@ -3605,6 +3606,7 @@ export default function App() {
   const c = useThemeColors();
   return (
     <GluestackUIProvider mode={colorScheme === "light" ? "light" : "dark"}>
+      <StatusBar style={colorScheme === "light" ? "dark" : "light"} />
       <View style={{ flex: 1, backgroundColor: c.background }}>
         <SafeAreaProvider style={{ backgroundColor: c.background }}>
           <FinanceProvider>
