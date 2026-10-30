@@ -1466,6 +1466,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       }
     } catch (e: any) {
       errorMessage = e?.message ?? "Something went wrong. Please try again.";
+      // errorMessage = `${e?.message} (${API_URL})`;
     } finally {
       setScanning(false);
     }
