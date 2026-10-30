@@ -1372,7 +1372,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      quality: 0.7,
+      quality: 0.9,
     });
     if (result.canceled || !result.assets[0]) return;
 

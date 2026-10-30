@@ -47,6 +47,41 @@ const upload = multer({
   },
 });
 
+function payslipIsConsistent(p: any) {
+  const calc =
+    (p.basicSalary || 0) +
+    (p.allowances || 0) +
+    (p.bonus || 0) -
+    ((p.epfEmployee || 0) + (p.socso || 0) + (p.eis || 0) + (p.taxPcb || 0));
+  return !p.printedNetSalary || Math.abs(calc - p.printedNetSalary) < 1;
+}
+
+async function scanImage(file: Express.Multer.File, extraHint = "") {
+  const response = await generateWithRetry({
+    model: MODEL,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            inlineData: {
+              mimeType: file.mimetype || "image/jpeg",
+              data: file.buffer.toString("base64"),
+            },
+          },
+          { text: SCAN_PROMPT + extraHint },
+        ],
+      },
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: scanSchema,
+      temperature: 0,
+    },
+  });
+  return JSON.parse(response.text || "{}");
+}
+
 const CATEGORIES = [
   "Transfer",
   "Food",
@@ -80,39 +115,33 @@ const CATEGORY_RULES = `Categorize each transaction by the merchant or item, usi
 - Transfer: transfers (anything containing "transfer"), and anything that fits none of the above.
 If a merchant is unclear, choose from the items purchased. Use 'Others' only as a last resort.`;
 
+const PAYSLIP_RULES = `If documentType is "payslip", extract the following for a Malaysian employee.
+
+Work in two steps:
+1. First fill "lineItems" with EVERY earning and deduction row you can see (label exactly as printed, amount, section = "earning" | "deduction" | "employer_contribution" | "ytd" | "summary"). Read the whole page, including small print, footers and side columns.
+2. Then map the line items into the payslip fields.
+
+Field mapping (use the CURRENT MONTH column only, never YTD / "Year to Date" / "Terkumpul"):
+- basicSalary: Basic Salary, Basic Pay, Gaji Pokok, Gaji Asas, Wages.
+- allowances: SUM of all fixed/other earnings that are not basic or bonus: Allowance, Elaun, Transport, Meal, Phone, Housing, Overtime (OT), Commission, Incentive, Claims, Reimbursement, any other earning row.
+- bonus: Bonus, Incentive Bonus, Ex-gratia, Annual/Performance Bonus, Arrears if labelled bonus.
+- epfEmployee: EPF / KWSP deducted from the EMPLOYEE (Employee's contribution, Caruman Pekerja, "EPF (EE)"). Ignore the Employer's share.
+- socso: SOCSO / PERKESO employee deduction only.
+- eis: EIS / SIP (Sistem Insurans Pekerjaan) employee deduction only.
+- taxPcb: PCB / MTD / Monthly Tax Deduction / Potongan Cukai / Income Tax. Include "PCB 2" or additional tax if shown.
+- printedNetSalary: the net pay / take-home / "Gaji Bersih" / "Net Pay" exactly as printed on the slip. Read it, do not calculate it.
+- netSalary: basicSalary + allowances + bonus - (epfEmployee + socso + eis + taxPcb).
+
+Rules:
+- Employer contributions are usually in a separate box or column. Do not use them for deductions.
+- Only return 0 when you have checked every row and the item truly does not appear. A deduction that is printed must never be returned as 0.
+- Amounts are plain numbers: remove "RM", commas and spaces ("1,234.50" -> 1234.5).
+- payDate (YYYY-MM-DD): use the printed pay/payment date if shown. If only a month/period is shown (e.g. "June 2026"), use the LAST day of that month ("2026-06-30"). Malaysian dates are DD/MM/YYYY. Always 4-digit year.`;
+
 const SCAN_PROMPT = `${CLASSIFY_RULES}
-- If documentType is "payslip": fill the payslip object for a Malaysian employee: Basic Salary, Allowances, Bonus, Employee EPF (KWSP), SOCSO (PERKESO), EIS, Income Tax (PCB), and calculate Net Salary (Basic + Allowances + Bonus - Deductions). If not found, return 0. Also extract the pay date as payDate in YYYY-MM-DD format. Malaysian dates are usually DD/MM/YYYY, and always use a 4-digit year. If the payslip only shows a pay period or month (e.g. "JULY 2026"), use the last day of that month. Omit payDate if no date or period is visible. Omit transactions.
+- ${PAYSLIP_RULES} Omit transactions.
 - If documentType is "receipt": fill transactions with every individual transaction. For bank or e-wallet statements, include only money spent (debits) and skip incoming credits. Dates are usually DD/MM/YYYY or DD/MM/YY; return YYYY-MM-DD with a 4-digit year (omit if not visible). ${CATEGORY_RULES} Omit payslip.
 - If documentType is "other": omit both.`;
-
-// const payslipSchema = {
-//   type: Type.OBJECT,
-//   properties: {
-//     documentType: documentTypeField,
-//     basicSalary: { type: Type.NUMBER },
-//     allowances: { type: Type.NUMBER },
-//     bonus: { type: Type.NUMBER },
-//     epfEmployee: { type: Type.NUMBER },
-//     socso: { type: Type.NUMBER },
-//     eis: { type: Type.NUMBER },
-//     taxPcb: { type: Type.NUMBER },
-//     netSalary: { type: Type.NUMBER },
-//     payDate: { type: Type.STRING },
-//   },
-//   propertyOrdering: [
-//     "documentType",
-//     "basicSalary",
-//     "allowances",
-//     "bonus",
-//     "epfEmployee",
-//     "socso",
-//     "eis",
-//     "taxPcb",
-//     "netSalary",
-//     "payDate",
-//   ],
-//   required: ["documentType", "basicSalary", "netSalary"],
-// };
 
 // const expenseSchema = {
 //   type: Type.OBJECT,
@@ -136,24 +165,83 @@ const SCAN_PROMPT = `${CLASSIFY_RULES}
 //   required: ["documentType", "transactions"],
 // };
 
+const payslipSchema = {
+  type: Type.OBJECT,
+  properties: {
+    lineItems: {
+      type: Type.ARRAY,
+      description: "Every earning/deduction row visible on the payslip",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          label: { type: Type.STRING },
+          amount: { type: Type.NUMBER },
+          section: {
+            type: Type.STRING,
+            format: "enum",
+            enum: [
+              "earning",
+              "deduction",
+              "employer_contribution",
+              "ytd",
+              "summary",
+            ],
+          },
+        },
+        required: ["label", "amount", "section"],
+      },
+    },
+    basicSalary: { type: Type.NUMBER, description: "Monthly basic salary" },
+    allowances: {
+      type: Type.NUMBER,
+      description: "Sum of all non-basic, non-bonus earnings",
+    },
+    bonus: { type: Type.NUMBER },
+    epfEmployee: {
+      type: Type.NUMBER,
+      description: "Employee EPF/KWSP deduction, not employer",
+    },
+    socso: {
+      type: Type.NUMBER,
+      description: "Employee SOCSO/PERKESO deduction",
+    },
+    eis: { type: Type.NUMBER, description: "Employee EIS/SIP deduction" },
+    taxPcb: { type: Type.NUMBER, description: "PCB/MTD income tax deduction" },
+    printedNetSalary: { type: Type.NUMBER, description: "Net pay as printed" },
+    netSalary: { type: Type.NUMBER },
+    payDate: { type: Type.STRING },
+  },
+  propertyOrdering: [
+    "lineItems",
+    "basicSalary",
+    "allowances",
+    "bonus",
+    "epfEmployee",
+    "socso",
+    "eis",
+    "taxPcb",
+    "printedNetSalary",
+    "netSalary",
+    "payDate",
+  ],
+  required: [
+    "lineItems",
+    "basicSalary",
+    "allowances",
+    "bonus",
+    "epfEmployee",
+    "socso",
+    "eis",
+    "taxPcb",
+    "printedNetSalary",
+  ],
+};
+
 const scanSchema = {
   type: Type.OBJECT,
   properties: {
     documentType: documentTypeField,
-    payslip: {
-      type: Type.OBJECT,
-      properties: {
-        basicSalary: { type: Type.NUMBER },
-        allowances: { type: Type.NUMBER },
-        bonus: { type: Type.NUMBER },
-        epfEmployee: { type: Type.NUMBER },
-        socso: { type: Type.NUMBER },
-        eis: { type: Type.NUMBER },
-        taxPcb: { type: Type.NUMBER },
-        netSalary: { type: Type.NUMBER },
-        payDate: { type: Type.STRING },
-      },
-    },
+    payslip: payslipSchema,
     transactions: {
       type: Type.ARRAY,
       items: {
@@ -180,32 +268,50 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const response = await generateWithRetry({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: file.mimetype || "image/jpeg",
-                data: file.buffer.toString("base64"),
-              },
-            },
-            { text: SCAN_PROMPT },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: scanSchema,
-      },
-    });
+    // const response = await generateWithRetry({
+    //   model: MODEL,
+    //   contents: [
+    //     {
+    //       role: "user",
+    //       parts: [
+    //         {
+    //           inlineData: {
+    //             mimeType: file.mimetype || "image/jpeg",
+    //             data: file.buffer.toString("base64"),
+    //           },
+    //         },
+    //         { text: SCAN_PROMPT },
+    //       ],
+    //     },
+    //   ],
+    //   config: {
+    //     responseMimeType: "application/json",
+    //     responseSchema: scanSchema,
+    //   },
+    // });
 
-    const data = JSON.parse(response.text || "{}");
+    // const data = JSON.parse(response.text || "{}");
+
+    // if (data.documentType === "payslip" && data.payslip) {
+    //   return res.json({ type: "payslip", data: data.payslip });
+    // }
+
+    let data = await scanImage(file);
+
+    if (
+      data.documentType === "payslip" &&
+      data.payslip &&
+      !payslipIsConsistent(data.payslip)
+    ) {
+      const hint = `\n\nYour previous extraction did not match the printed net pay of ${data.payslip.printedNetSalary}. Re-check every deduction and allowance row, and make sure you use the employee column, not the employer or YTD column.`;
+      const retry = await scanImage(file, hint);
+      if (retry.documentType === "payslip" && retry.payslip) data = retry;
+    }
+
     if (data.documentType === "payslip" && data.payslip) {
       return res.json({ type: "payslip", data: data.payslip });
     }
+
     if (data.documentType === "receipt" && data.transactions?.length) {
       return res.json({
         type: "receipt",
