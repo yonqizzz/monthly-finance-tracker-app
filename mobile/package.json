@@ -50,7 +50,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "update": "eas update --branch preview --environment preview --clear-cache"
+    "update": "eas update --branch preview --environment preview --clear-cache",
+    "build": "eas build --platform android --profile preview"
   },
   "private": true,
   "overrides": {

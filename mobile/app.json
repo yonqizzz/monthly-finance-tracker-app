@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "finance-universal",
+    "name": "Finance Tracker",
     "slug": "finance-universal",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,15 +9,14 @@
     "backgroundColor": "#0D1210",
     "ios": {
       "backgroundColor": "#0D1210",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yonqi.financeuniversal"
     },
     "android": {
       "backgroundColor": "#0D1210",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#F8F5EC",
+        "foregroundImage": "./assets/wallet_icon_transparent.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.yonqi.financeuniversal"

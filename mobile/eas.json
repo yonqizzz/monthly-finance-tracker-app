@@ -1,9 +1,10 @@
 {
-  "cli": { "version": ">= 5.0.0" },
+  "cli": { "appVersionSource": "remote" },
   "build": {
     "preview": {
       "channel": "preview",
       "distribution": "internal",
+      "autoIncrement": true,
       "android": { "buildType": "apk" },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://monthly-finance-tracker.onrender.com/api/parse"
