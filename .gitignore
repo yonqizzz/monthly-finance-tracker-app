@@ -8,3 +8,4 @@ web-build/
 .claude/
 *.log
 .DS_Store
+*.jks
