@@ -1,6 +1,6 @@
 import "./global.css";
 import "react-native-gesture-handler";
-import React, {
+import {
   createContext,
   useContext,
   useState,
@@ -28,13 +28,13 @@ import {
   NativeScrollEvent,
   Keyboard,
   KeyboardAvoidingView,
+  AppState,
 } from "react-native";
 import Svg, { Circle as SvgCircle, G } from "react-native-svg";
 import {
   NavigationContainer,
   DarkTheme,
   DefaultTheme,
-  useFocusEffect,
   useNavigation,
 } from "@react-navigation/native";
 import {
@@ -53,7 +53,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useHeaderHeight } from "@react-navigation/elements";
-import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Landmark,
@@ -79,8 +78,15 @@ import {
   CalendarCheck,
   Wallet,
   Info,
+  Cloud,
+  CloudUpload,
+  CloudDownload,
+  LogOut,
 } from "lucide-react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import {
   colors,
   colorsLight,
@@ -118,13 +124,24 @@ import {
   ActionsheetItemText,
   ActionsheetIcon,
 } from "@/components/ui/actionsheet";
+import * as ImagePicker from "expo-image-picker";
 import { fetch as expoFetch } from "expo/fetch";
 import { File } from "expo-file-system";
 import { StatusBar } from "expo-status-bar";
+import {
+  configureGoogle,
+  uploadBackup,
+  downloadBackup,
+  signIn,
+  signOut,
+  restoreSession,
+  getCurrentUser,
+} from "./lib/drive";
 
 // ---------------------------------------------------------------------------
 // Configuration & Constants
 // ---------------------------------------------------------------------------
+configureGoogle();
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api/parse";
 const DESKTOP_BREAKPOINT = 768;
@@ -269,6 +286,14 @@ export interface ActiveCommitment {
 export interface CategoryBudget {
   category: string;
   amount: number;
+}
+
+export interface BackupPayload {
+  app: "finance-tracker";
+  version: number;
+  exportedAt: string;
+  records: Record<string, MonthData>;
+  master: MasterCommitment[];
 }
 
 const DEFAULT_MONTH_DATA: MonthData = {
@@ -647,7 +672,7 @@ function ScanErrorDialog() {
     >
       <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
       <AlertDialogContent className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <AlertDialogHeader className="border-b-0 pb-1 flex-row items-center gap-2.5">
+        <AlertDialogHeader className="border-b-0 pb-2 flex-row items-center gap-2.5 justify-start">
           <TriangleAlert color={c.expense} size={22} />
           <Text className="text-xl font-bold text-foreground">Scan failed</Text>
         </AlertDialogHeader>
@@ -737,7 +762,13 @@ function MoreActionsButton({ onPress }: { onPress: () => void }) {
 // ---------------------------------------------------------------------------
 // Navigate to current month button
 // --------------------------------------------------------------------------
-function TodayButton({ onPress }: { onPress: () => void }) {
+function TodayButton({
+  onPress,
+  label = "This Month",
+}: {
+  onPress: () => void;
+  label?: string;
+}) {
   const c = useThemeColors();
   return (
     <TouchableOpacity
@@ -746,7 +777,7 @@ function TodayButton({ onPress }: { onPress: () => void }) {
       className="flex-row items-center gap-1.5 mr-5 px-3 py-1.5 rounded-full bg-secondary"
     >
       <CalendarDays color={c.primary} size={17} />
-      <Text className="text-base font-semibold text-primary">This Month</Text>
+      <Text className="text-base font-semibold text-primary">{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -1272,6 +1303,9 @@ interface FinanceContextType {
   goToCurrentMonth: () => void;
   scanError: string | null;
   clearScanError: () => void;
+  backupToDrive: () => Promise<void>;
+  fetchDriveBackup: () => Promise<BackupPayload | null>;
+  restoreBackup: (payload: BackupPayload) => void;
 }
 
 const FinanceContext = createContext<FinanceContextType | null>(null);
@@ -1324,6 +1358,18 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         JSON.stringify(masterList),
       );
     }
+
+    const sub = AppState.addEventListener("change", async (state) => {
+      try {
+        if (state !== "background" || !isLoaded || !getCurrentUser()) return;
+        const last = Number(
+          (await AsyncStorage.getItem("last_drive_backup")) || 0,
+        );
+        if (Date.now() - last < 24 * 60 * 60 * 1000) return;
+        await backupToDrive();
+      } catch {}
+    });
+    return () => sub.remove();
   }, [allData, masterList, isLoaded]);
 
   const rawMonthData = allData[selectedMonth] || DEFAULT_MONTH_DATA;
@@ -1621,6 +1667,38 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       ? Math.min(100, (spentAmount / totalNetIncome) * 100)
       : 0;
 
+  const backupToDrive = async () => {
+    const payload: BackupPayload = {
+      app: "finance-tracker",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      records: allData,
+      master: masterList,
+    };
+    await uploadBackup(JSON.stringify(payload));
+    await AsyncStorage.setItem("last_drive_backup", String(Date.now()));
+  };
+
+  // Returns null if no backup exists on Drive
+  const fetchDriveBackup = async (): Promise<BackupPayload | null> => {
+    const result = await downloadBackup();
+    if (!result) return null;
+    const p = result.data;
+    if (
+      p?.app !== "finance-tracker" ||
+      !p.records ||
+      !Array.isArray(p.master)
+    ) {
+      throw new Error("Backup on Drive is invalid.");
+    }
+    return p as BackupPayload;
+  };
+
+  const restoreBackup = (payload: BackupPayload) => {
+    setAllData(payload.records);
+    setMasterList(payload.master);
+  };
+
   if (!isLoaded) return null;
 
   return (
@@ -1655,6 +1733,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         goToCurrentMonth,
         scanError,
         clearScanError: () => setScanError(null),
+        backupToDrive,
+        fetchDriveBackup,
+        restoreBackup,
       }}
     >
       {children}
@@ -1841,7 +1922,7 @@ function DashboardScreen({ navigation }: { navigation: any }) {
         )}
 
         {/* 2. Hero Cards*/}
-        <View style={{ zIndex: 10 }} className="mt-2 mb-6">
+        <GCard className="mt-1 mb-5 bg-card rounded-2xl shadow-md">
           <Text className="text-base text-muted-foreground mb-1.5">
             Left to spend this month
           </Text>
@@ -1887,12 +1968,12 @@ function DashboardScreen({ navigation }: { navigation: any }) {
                 position: "absolute",
                 top: "100%",
                 left: 0,
-                marginTop: 8,
+                marginTop: 20,
                 width: 280,
                 elevation: 8,
                 zIndex: 20,
               }}
-              className="bg-card border border-border rounded-2xl p-4 shadow-lg"
+              className="bg-card border border-border rounded-2xl p-4"
             >
               <Text className="text-base font-bold text-foreground mb-1">
                 Total spent
@@ -1922,7 +2003,7 @@ function DashboardScreen({ navigation }: { navigation: any }) {
               </View>
             </View>
           )}
-        </View>
+        </GCard>
 
         <View className="flex-row gap-3 mb-5">
           <TouchableOpacity
@@ -2118,9 +2199,14 @@ function CommitmentsScreen({ navigation }: { navigation: any }) {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () =>
-        showToday ? <TodayButton onPress={goToToday} /> : null,
+        showToday ? (
+          <TodayButton
+            onPress={goToToday}
+            label={viewMode === "calendar" ? "Today" : "This Month"}
+          />
+        ) : null,
     });
-  }, [navigation, showToday, goToCurrentMonth, todayDate]);
+  }, [navigation, showToday, goToCurrentMonth, todayDate, viewMode]);
 
   const controls = (
     <>
@@ -2347,7 +2433,7 @@ function CommitmentsScreen({ navigation }: { navigation: any }) {
         </View>
       )}
 
-      <View className="absolute bottom-0 left-0 right-0 border-t border-border bg-card/95 px-6 pt-4 pb-8 flex-row justify-between items-center shadow-sm">
+      <View className="absolute bottom-0 left-0 right-0 bg-card/95 px-6 pt-4 pb-8 flex-row justify-between items-center shadow-sm">
         <View className="flex-col">
           <Text className="text-lg font-semibold text-foreground">
             Total commitments
@@ -2356,7 +2442,7 @@ function CommitmentsScreen({ navigation }: { navigation: any }) {
             {paidCount} commitments checked
           </Text>
         </View>
-        <Text className="text-2xl font-bold text-commitments">
+        <Text className="text-2xl font-bold text-primary">
           RM {formatMoney(totalCommitments)}
         </Text>
       </View>
@@ -3219,32 +3305,365 @@ function CustomDrawerContent(props: any) {
     Appearance.setColorScheme(colorScheme === "dark" ? "light" : "dark");
   };
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
+  const { backupToDrive, fetchDriveBackup, restoreBackup } = useFinance();
+
+  const [email, setEmail] = useState<string | null>(null);
+  const [lastBackup, setLastBackup] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [pending, setPending] = useState<BackupPayload | null>(null);
+  const [notice, setNotice] = useState<{
+    title: string;
+    message: string;
+    error?: boolean;
+  } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastAnim = useSharedValue(0);
+
+  const toastStyle = useAnimatedStyle(() => ({
+    opacity: toastAnim.value,
+    transform: [{ translateY: (1 - toastAnim.value) * 12 }],
+  }));
+
+  const showToast = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg);
+    toastAnim.value = withTiming(1, { duration: 200 });
+    toastTimer.current = setTimeout(() => {
+      toastAnim.value = withTiming(0, { duration: 250 });
+      // unmount after the fade-out finishes
+      toastTimer.current = setTimeout(() => setToast(null), 260);
+    }, 2300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  const loadLastBackup = async () => {
+    const v = await AsyncStorage.getItem("last_drive_backup");
+    setLastBackup(v ? Number(v) : null);
+  };
+
+  useEffect(() => {
+    restoreSession().then((u) => setEmail(u?.user?.email ?? null));
+    loadLastBackup();
+  }, []);
+
+  const fail = (title: string, e: any) =>
+    setNotice({
+      title,
+      message: e?.message ?? "Something went wrong.",
+      error: true,
+    });
+
+  const handleSignIn = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await signIn();
+      const mail = getCurrentUser()?.user?.email ?? null;
+      setEmail(mail);
+      // showToast(mail ? `Signed in as ${mail}` : "Signed in");
+      showToast("Signed in");
+    } catch (e: any) {
+      fail("Sign-in failed", e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    setBusy(true);
+    try {
+      await backupToDrive();
+      await loadLastBackup();
+      showToast("Backup completed");
+    } catch (e: any) {
+      fail("Backup failed", e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRestorePick = async () => {
+    setBusy(true);
+    try {
+      const payload = await fetchDriveBackup();
+      if (!payload) {
+        setNotice({
+          title: "No backup found",
+          message: "There is no backup data found on your Google Drive yet.",
+        });
+      } else {
+        setPending(payload);
+      }
+    } catch (e: any) {
+      fail("Restore failed", e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setEmail(null);
+      showToast("Signed out");
+    } catch (e: any) {
+      fail("Sign-out failed", e);
+    }
+  };
+
+  // Close the sheet first, then run the action after it finishes closing
+  const runFromSheet = (fn: () => void) => {
+    setSheetOpen(false);
+    setTimeout(fn, 300);
+  };
+
+  const lastText = lastBackup
+    ? new Date(lastBackup).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Never";
+
   return (
-    <DrawerContentScrollView
-      {...props}
-      style={{ backgroundColor: c.background }}
-    >
-      <View className="flex-row items-center justify-between px-4 py-6 border-b border-border mb-2">
-        <View className="flex-row items-center gap-2.5">
-          <Landmark color={c.foreground} size={24} />
-          <Text className="text-lg font-bold text-foreground">
-            Finances Tracker
-          </Text>
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <DrawerContentScrollView
+        {...props}
+        style={{ backgroundColor: c.background }}
+      >
+        <View className="flex-row items-center justify-between px-4 py-6 border-b border-border mb-2">
+          <View className="flex-row items-center gap-2.5">
+            <Landmark color={c.foreground} size={24} />
+            <Text className="text-lg font-bold text-foreground">
+              Finance Tracker
+            </Text>
+          </View>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={toggleColorScheme}
+            className="w-9 h-9 rounded-full bg-card items-center justify-center border border-border"
+          >
+            {colorScheme === "light" ? (
+              <Moon color={c.foreground} size={17} />
+            ) : (
+              <Sun color={c.foreground} size={17} />
+            )}
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => toggleColorScheme()}
-          className="w-9 h-9 rounded-full bg-card items-center justify-center border border-border"
+        <DrawerItemList {...props} />
+      </DrawerContentScrollView>
+
+      {toast && (
+        <Animated.View
+          style={toastStyle}
+          className="mx-4 mb-3 bg-card border border-border rounded-xl px-3.5 py-2.5 flex-row items-center gap-2"
         >
-          {colorScheme === "light" ? (
-            <Moon color={c.foreground} size={17} />
-          ) : (
-            <Sun color={c.foreground} size={17} />
-          )}
+          <CheckCircle2 color={c.income} size={16} />
+          <Text
+            className="flex-1 text-md font-medium text-foreground"
+            numberOfLines={1}
+          >
+            {toast}
+          </Text>
+        </Animated.View>
+      )}
+
+      {/* Single backup card */}
+      <View
+        style={{
+          paddingBottom: Math.max(insets.bottom, 16) + 8,
+        }}
+        className="px-4 pt-4 border-t border-border"
+      >
+        <TouchableOpacity
+          activeOpacity={0.7}
+          disabled={busy}
+          onPress={email ? () => setSheetOpen(true) : handleSignIn}
+          className="flex-row items-center gap-3 bg-card rounded-2xl p-3"
+        >
+          <View className="w-10 h-10 rounded-xl bg-secondary items-center justify-center">
+            {busy ? (
+              <ActivityIndicator size="small" color={c.primary} />
+            ) : (
+              <Cloud color={c.foreground} size={20} />
+            )}
+          </View>
+          <View className="flex-1">
+            {email ? (
+              <>
+                <Text
+                  className="text-sm font-semibold text-foreground"
+                  numberOfLines={1}
+                >
+                  {email}
+                </Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">
+                  Last backup: {lastText}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text className="text-sm font-semibold text-foreground">
+                  Back up to Google Drive
+                </Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">
+                  Tap to sign in
+                </Text>
+              </>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
-      <DrawerItemList {...props} />
-    </DrawerContentScrollView>
+
+      {/* Actions sheet (signed in) */}
+      <Actionsheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)}>
+        <ActionsheetBackdrop />
+        <ActionsheetContent className="bg-card border-t border-border pb-6">
+          <ActionsheetDragIndicatorWrapper>
+            <ActionsheetDragIndicator />
+          </ActionsheetDragIndicatorWrapper>
+          <ActionsheetItem
+            onPress={() => runFromSheet(handleBackup)}
+            className="py-4 data-[active=true]:bg-foreground/10"
+          >
+            <ActionsheetIcon
+              as={CloudUpload}
+              size={22}
+              className="text-foreground"
+            />
+            <ActionsheetItemText className="text-foreground font-semibold text-lg ml-1">
+              Back up now
+            </ActionsheetItemText>
+          </ActionsheetItem>
+          <ActionsheetItem
+            onPress={() => runFromSheet(handleRestorePick)}
+            className="py-4 data-[active=true]:bg-foreground/10"
+          >
+            <ActionsheetIcon
+              as={CloudDownload}
+              size={22}
+              className="text-foreground"
+            />
+            <ActionsheetItemText className="text-foreground font-semibold text-lg ml-1">
+              Restore from Drive
+            </ActionsheetItemText>
+          </ActionsheetItem>
+          <ActionsheetItem
+            onPress={() => runFromSheet(handleSignOut)}
+            className="py-4 mb-6 data-[active=true]:bg-foreground/10"
+          >
+            <ActionsheetIcon
+              as={LogOut}
+              size={22}
+              className="text-foreground"
+            />
+            <ActionsheetItemText className="text-foreground font-semibold text-lg ml-1">
+              Sign out
+            </ActionsheetItemText>
+          </ActionsheetItem>
+        </ActionsheetContent>
+      </Actionsheet>
+
+      {/* Confirm restore */}
+      <AlertDialog
+        isOpen={!!pending}
+        onClose={() => setPending(null)}
+        useRNModal={Platform.OS !== "web"}
+        size="md"
+      >
+        <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
+        <AlertDialogContent className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+          <AlertDialogHeader className="border-b-0 pb-1">
+            <Text className="text-xl font-bold text-foreground">
+              Restore backup?
+            </Text>
+          </AlertDialogHeader>
+          <AlertDialogBody className="mb-5">
+            <Text className="text-base text-muted-foreground">
+              This replaces all current data with the backup from{" "}
+              {pending
+                ? formatDateReadable(pending.exportedAt.slice(0, 10))
+                : ""}{" "}
+              ({pending ? Object.keys(pending.records).length : 0} months,{" "}
+              {pending ? pending.master.length : 0} commitments). This cannot be
+              undone.
+            </Text>
+          </AlertDialogBody>
+          <AlertDialogFooter className="border-t-0 pt-1 flex-row justify-end gap-3">
+            <GButton
+              size="sm"
+              color="secondary"
+              onPress={() => setPending(null)}
+            >
+              Cancel
+            </GButton>
+            <GButton
+              size="sm"
+              color="danger"
+              onPress={() => {
+                if (pending) restoreBackup(pending);
+                setPending(null);
+                setTimeout(
+                  () =>
+                    setNotice({
+                      title: "Backup restored",
+                      message: "Your data has been replaced with the backup.",
+                    }),
+                  300,
+                );
+              }}
+            >
+              Restore
+            </GButton>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Result / error notice */}
+      <AlertDialog
+        isOpen={!!notice}
+        onClose={() => setNotice(null)}
+        useRNModal={Platform.OS !== "web"}
+        size="md"
+      >
+        <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
+        <AlertDialogContent className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+          <AlertDialogHeader className="border-b-0 pb-2 flex-row items-center gap-2.5 justify-start">
+            {notice?.error ? (
+              <TriangleAlert color={c.expense} size={22} />
+            ) : (
+              <CheckCircle2 color={c.income} size={22} />
+            )}
+            <Text className="text-xl font-bold text-foreground">
+              {notice?.title}
+            </Text>
+          </AlertDialogHeader>
+          <AlertDialogBody className="mb-5">
+            <Text className="text-base text-muted-foreground">
+              {notice?.message}
+            </Text>
+          </AlertDialogBody>
+          <AlertDialogFooter className="border-t-0 pt-1 flex-row justify-end">
+            <GButton
+              size="sm"
+              color="secondary"
+              onPress={() => setNotice(null)}
+            >
+              OK
+            </GButton>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </View>
   );
 }
 

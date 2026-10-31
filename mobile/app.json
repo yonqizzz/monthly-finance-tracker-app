@@ -2,7 +2,7 @@
   "expo": {
     "name": "Finance Tracker",
     "slug": "finance-universal",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -35,6 +35,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/908a2a35-b85d-4a6b-b361-f2d69a36516b"
-    }
+    },
+    "plugins": ["@react-native-google-signin/google-signin", "expo-sharing"]
   }
 }
