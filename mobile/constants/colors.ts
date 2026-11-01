@@ -1,21 +1,21 @@
 import { useColorScheme } from "react-native";
 
 export const colors = {
-  background: "#121118",
-  card: "#1C1A22",
-  border: "#2A2733",
-  foreground: "#FFFFFF",
-  mutedForeground: "#9E9AA8",
-  secondary: "#25222C",
-  secondaryForeground: "#F0F1F1",
+  background: "#14100E",
+  card: "#30241D",
+  border: "#4A3A31",
+  foreground: "#FBF5F0",
+  mutedForeground: "#BAA89B",
+  secondary: "#3C2E26",
+  secondaryForeground: "#F7EFE9",
 
-  primary: "#FF5E97",
-  onPrimary: "#FFFFFF",
+  primary: "#C8754C",
+  onPrimary: "#1F140E",
 
   income: "#10B981",
   expense: "#EF4444",
   onExpense: "#FFFFFF",
-  commitments: "#FFB020",
+  commitments: "#FFC93C",
   budget: "#2C8DFF",
 
   catCyan: "#22D3EE",
@@ -23,21 +23,21 @@ export const colors = {
   catViolet: "#8B5CF6",
   catTeal: "#10B981",
   catSlate: "#B7BEC7",
-  catTaupe: "#D2AE8C",
+  catTaupe: "#9CC5A1",
   catRose: "#FF8FB3",
   catOrange: "#FB923C",
 };
 
 export const colorsLight = {
-  background: "#FAF8F9",
+  background: "#FAF7F4",
   card: "#FFFFFF",
-  border: "#E7E2E9",
-  foreground: "#17141A",
-  mutedForeground: "#6C6774",
-  secondary: "#F1EEF2",
-  secondaryForeground: "#17141A",
+  border: "#EADFD8",
+  foreground: "#1C1612",
+  mutedForeground: "#75685F",
+  secondary: "#F3EDE8",
+  secondaryForeground: "#1C1612",
 
-  primary: "#E0447D",
+  primary: "#A85A34",
   onPrimary: "#FFFFFF",
 
   income: "#0F9D63",
@@ -51,7 +51,7 @@ export const colorsLight = {
   catViolet: "#7C3AED",
   catTeal: "#0F9D63",
   catSlate: "#5B6472",
-  catTaupe: "#8A6A4E",
+  catTaupe: "#5E8A63",
   catRose: "#C2185B",
   catOrange: "#EA580C",
 };

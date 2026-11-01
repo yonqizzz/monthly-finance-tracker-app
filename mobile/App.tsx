@@ -124,6 +124,7 @@ import {
   ActionsheetItemText,
   ActionsheetIcon,
 } from "@/components/ui/actionsheet";
+import * as SystemUI from "expo-system-ui";
 import * as ImagePicker from "expo-image-picker";
 import { fetch as expoFetch } from "expo/fetch";
 import { File } from "expo-file-system";
@@ -438,7 +439,7 @@ function GCard({
 
   return (
     <View
-      className={`bg-card border border-border dark:border-0 rounded-2xl w-full ${
+      className={`bg-card rounded-2xl w-full ${
         hasCustomPadding ? "" : "p-4"
       } ${className}`}
     >
@@ -533,10 +534,9 @@ function GButton({
     }
     if (color === "primary")
       // return "rounded-full bg-foreground active:bg-foreground/90 shadow-md data-[active=true]:bg-foreground";
-      return "rounded-full border border-border bg-card dark:bg-secondary active:bg-card/90 shadow-md data-[active=true]:bg-card";
+      return "rounded-full bg-card dark:bg-secondary active:bg-card/90 shadow-md data-[active=true]:bg-card";
 
-    if (color === "secondary")
-      return "bg-secondary active:bg-secondary/80 border border-border";
+    if (color === "secondary") return "bg-secondary active:bg-secondary/80";
     // return "bg-card border border-primary/30 shadow-sm";
     return "bg-destructive active:bg-destructive/90";
   })();
@@ -604,7 +604,7 @@ function ConfirmDeleteModal({
       size="md"
     >
       <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
-      <AlertDialogContent className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+      <AlertDialogContent className="bg-card rounded-xl p-6 w-full max-w-sm shadow-2xl">
         <AlertDialogHeader className="border-b-0 pb-1">
           <Text className="text-xl font-bold text-foreground">{title}</Text>
         </AlertDialogHeader>
@@ -646,7 +646,7 @@ function ScanningOverlay() {
       size="md"
     >
       <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
-      <AlertDialogContent className="bg-card border border-border rounded-2xl px-8 py-7 items-center w-full max-w-xs shadow-2xl">
+      <AlertDialogContent className="bg-card rounded-2xl px-8 py-7 items-center w-full max-w-xs shadow-2xl">
         <ActivityIndicator size="large" color={c.primary} />
         <Text className="text-lg font-bold text-foreground mt-4">
           Scanning document...
@@ -671,7 +671,7 @@ function ScanErrorDialog() {
       size="md"
     >
       <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
-      <AlertDialogContent className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+      <AlertDialogContent className="bg-card rounded-xl p-6 w-full max-w-sm shadow-2xl">
         <AlertDialogHeader className="border-b-0 pb-2 flex-row items-center gap-2.5 justify-start">
           <TriangleAlert color={c.expense} size={22} />
           <Text className="text-xl font-bold text-foreground">Scan failed</Text>
@@ -776,8 +776,10 @@ function TodayButton({
       onPress={onPress}
       className="flex-row items-center gap-1.5 mr-5 px-3 py-1.5 rounded-full bg-secondary"
     >
-      <CalendarDays color={c.primary} size={17} />
-      <Text className="text-base font-semibold text-primary">{label}</Text>
+      <CalendarDays color={c.mutedForeground} size={17} />
+      <Text className="text-base font-semibold text-muted-foreground">
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -873,8 +875,8 @@ function FabMenu({
           pointerEvents={open ? "auto" : "none"}
           style={[miniRow, miniStyle]}
         >
-          <View className="bg-card px-3.5 py-1.5 rounded-xl border border-border shadow-md">
-            <Text className="text-xs font-semibold text-secondary-foreground">
+          <View className="bg-card px-3.5 py-1.5 rounded-xl shadow-md dark:border border-border">
+            <Text className="text-md font-semibold text-secondary-foreground">
               Scan Document
             </Text>
           </View>
@@ -885,12 +887,12 @@ function FabMenu({
               closeInstant();
               setTimeout(onScan, 50);
             }}
-            className="w-12 h-12 rounded-full bg-card items-center justify-center border border-border shadow-md"
+            className="w-14 h-14 rounded-full bg-card items-center justify-center shadow-md dark:border border-border"
           >
             {scanning ? (
               <ActivityIndicator color={c.primary} size="small" />
             ) : (
-              <Upload color={c.foreground} size={20} />
+              <Upload color={c.foreground} size={22} />
             )}
           </TouchableOpacity>
         </Animated.View>
@@ -899,8 +901,8 @@ function FabMenu({
           pointerEvents={open ? "auto" : "none"}
           style={[miniRow, miniStyle]}
         >
-          <View className="bg-card px-3.5 py-1.5 rounded-xl border border-border shadow-md">
-            <Text className="text-xs font-semibold text-secondary-foreground">
+          <View className="bg-card px-3.5 py-1.5 rounded-xl shadow-md dark:border border-border">
+            <Text className="text-md font-semibold text-secondary-foreground">
               Add Entry
             </Text>
           </View>
@@ -910,9 +912,9 @@ function FabMenu({
               setFab(false);
               onAddEntry();
             }}
-            className="w-12 h-12 rounded-full bg-card items-center justify-center border border-border shadow-md"
+            className="w-14 h-14 rounded-full bg-card items-center justify-center shadow-md dark:border border-border"
           >
-            <Pencil color={c.foreground} size={20} />
+            <Pencil color={c.foreground} size={22} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -920,7 +922,7 @@ function FabMenu({
           activeOpacity={1}
           onPress={() => setFab(!open)}
           style={{ width: 58, height: 58 }}
-          className="rounded-full bg-card dark:bg-secondary shadow-md border border-border items-center justify-center"
+          className="rounded-full bg-card dark:bg-secondary shadow-md dark:border border-border items-center justify-center"
         >
           <Animated.View style={iconStyle}>
             <Plus color={c.secondaryForeground} size={28} strokeWidth={3} />
@@ -1807,7 +1809,7 @@ function MonthNavigator() {
         size="md"
       >
         <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.8)" }} />
-        <AlertDialogContent className="bg-card border border-border rounded-3xl p-6 w-full max-w-xs shadow-2xl">
+        <AlertDialogContent className="bg-card rounded-3xl p-6 w-full max-w-xs shadow-2xl">
           <View className="flex-row items-center justify-between mb-4">
             <TouchableOpacity
               activeOpacity={1}
@@ -1922,7 +1924,7 @@ function DashboardScreen({ navigation }: { navigation: any }) {
         )}
 
         {/* 2. Hero Cards*/}
-        <GCard className="mt-1 mb-5 bg-card rounded-2xl shadow-md">
+        <View className="mt-1 mb-5 bg-card rounded-2xl p-4 shadow-lg">
           <Text className="text-base text-muted-foreground mb-1.5">
             Left to spend this month
           </Text>
@@ -2003,7 +2005,7 @@ function DashboardScreen({ navigation }: { navigation: any }) {
               </View>
             </View>
           )}
-        </GCard>
+        </View>
 
         <View className="flex-row gap-3 mb-5">
           <TouchableOpacity
@@ -2262,7 +2264,7 @@ function CommitmentsScreen({ navigation }: { navigation: any }) {
       key={item.id}
       onPress={() => toggleCommitmentPaid(item.masterId)}
     >
-      <GCard className="flex-row items-center gap-3 bg-background border border-border rounded-xl p-3.5 mb-3">
+      <GCard className="flex-row items-center gap-3 bg-background rounded-xl p-3.5 mb-3 shadow-xs">
         {item.paid ? (
           <CheckCircle2 color={c.primary} size={20} />
         ) : (
@@ -2508,7 +2510,7 @@ function MonthlyBudgetScreen() {
       >
         <View className="w-full max-w-lg">
           {/* Overall */}
-          <GCard className="p-5 mb-5 items-center">
+          <GCard className="p-5 mb-5 items-center shadow-xs">
             <Text className="text-lg font-semibold text-budget mb-4">
               {formatMonth(selectedMonth)}
             </Text>
@@ -2557,7 +2559,7 @@ function MonthlyBudgetScreen() {
 
           {/* Breakdown */}
           {breakdown.length === 0 ? (
-            <GCard>
+            <GCard className="shadow-xs">
               <View className="py-10 items-center">
                 <Text className="text-sm text-muted-foreground text-center">
                   No spending recorded this month
@@ -2573,9 +2575,9 @@ function MonthlyBudgetScreen() {
                 const share =
                   spentAmount > 0 ? (row.amount / spentAmount) * 100 : 0;
                 return (
-                  <View
+                  <GCard
                     key={row.category}
-                    className="rounded-2xl p-4 mb-3 border bg-card border-border"
+                    className="rounded-2xl mb-3 bg-card shadow-xs"
                   >
                     <View className="flex-row items-center justify-between mb-2.5">
                       <View className="flex-row items-center gap-2.5">
@@ -2605,7 +2607,7 @@ function MonthlyBudgetScreen() {
                         className="h-full rounded-full"
                       />
                     </View>
-                  </View>
+                  </GCard>
                 );
               })}
             </>
@@ -2663,7 +2665,7 @@ function ManageCommitmentsScreen({ navigation }: { navigation: any }) {
             masterList.map((m) => {
               const isOngoing = !m.endDate || m.endDate >= todayISO;
               return (
-                <GCard key={m.id} className="mb-4">
+                <GCard key={m.id} className="mb-4 shadow-xs">
                   <View className="flex-row justify-between items-start">
                     <View className="flex-1 pr-2">
                       <Text className="text-lg font-bold text-foreground">
@@ -2759,7 +2761,7 @@ function EntryTypeToggle({
   onChange: (t: EntryFormType) => void;
 }) {
   return (
-    <View className="flex-row bg-background border border-border rounded-full p-1 mb-4">
+    <View className="flex-row bg-secondary rounded-full p-1 mb-4">
       {(["income", "expense"] as EntryFormType[]).map((t) => {
         const active = value === t;
         return (
@@ -2768,12 +2770,12 @@ function EntryTypeToggle({
             activeOpacity={1}
             onPress={() => onChange(t)}
             className={`flex-1 py-2.5 rounded-full items-center ${
-              active ? "bg-primary" : ""
+              active ? "bg-foreground" : ""
             }`}
           >
             <Text
               className={`text-sm font-bold ${
-                active ? "text-primary-foreground" : "text-muted-foreground"
+                active ? "text-background" : "text-muted-foreground"
               }`}
             >
               {t === "income" ? "Income" : "Expense"}
@@ -2864,7 +2866,7 @@ function IncomeFormScreen({
     >
       <FormScroll>
         <View className="w-full max-w-lg">
-          <GCard>
+          <GCard className="shadow-xs">
             {!isEditing && (
               <EntryTypeToggle value={entryType} onChange={setEntryType} />
             )}
@@ -3179,7 +3181,7 @@ function CommitmentFormScreen({
     >
       <FormScroll>
         <View className="w-full max-w-lg">
-          <GCard>
+          <GCard className="shadow-xs">
             <Text className="text-sm font-semibold text-muted-foreground mb-1">
               Commitment Name
             </Text>
@@ -3301,8 +3303,11 @@ function StaticDrawerMenuButton({ navigation }: { navigation: any }) {
 
 function CustomDrawerContent(props: any) {
   const colorScheme = useColorScheme();
+  //save mode
   const toggleColorScheme = () => {
-    Appearance.setColorScheme(colorScheme === "dark" ? "light" : "dark");
+    const next = colorScheme === "dark" ? "light" : "dark";
+    Appearance.setColorScheme(next);
+    AsyncStorage.setItem("theme_mode", next).catch(() => {});
   };
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -3450,7 +3455,7 @@ function CustomDrawerContent(props: any) {
           <TouchableOpacity
             activeOpacity={1}
             onPress={toggleColorScheme}
-            className="w-9 h-9 rounded-full bg-card items-center justify-center border border-border"
+            className="w-9 h-9 rounded-full bg-card items-center justify-center shadow-2xs"
           >
             {colorScheme === "light" ? (
               <Moon color={c.foreground} size={17} />
@@ -3488,9 +3493,9 @@ function CustomDrawerContent(props: any) {
           activeOpacity={0.7}
           disabled={busy}
           onPress={email ? () => setSheetOpen(true) : handleSignIn}
-          className="flex-row items-center gap-3 bg-card rounded-2xl p-3"
+          className="flex-row items-center gap-3 bg-card rounded-2xl p-3 shadow-2xs"
         >
-          <View className="w-10 h-10 rounded-xl bg-secondary items-center justify-center">
+          <View className="w-10 h-10 rounded-xl bg-background items-center justify-center">
             {busy ? (
               <ActivityIndicator size="small" color={c.primary} />
             ) : (
@@ -3581,7 +3586,7 @@ function CustomDrawerContent(props: any) {
         size="md"
       >
         <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
-        <AlertDialogContent className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        <AlertDialogContent className="bg-card rounded-xl p-6 w-full max-w-sm shadow-2xl">
           <AlertDialogHeader className="border-b-0 pb-1">
             <Text className="text-xl font-bold text-foreground">
               Restore backup?
@@ -3636,7 +3641,7 @@ function CustomDrawerContent(props: any) {
         size="md"
       >
         <AlertDialogBackdrop style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
-        <AlertDialogContent className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        <AlertDialogContent className="bg-card rounded-xl p-6 w-full max-w-sm shadow-2xl">
           <AlertDialogHeader className="border-b-0 pb-2 flex-row items-center gap-2.5 justify-start">
             {notice?.error ? (
               <TriangleAlert color={c.expense} size={22} />
@@ -3893,7 +3898,7 @@ function IncomeTab({ navigation }: { navigation: any }) {
                     <TouchableOpacity
                       activeOpacity={1}
                       onPress={() => setActionSheetIncome(income)}
-                      className="mt-3 py-3 rounded-xl bg-card dark:bg-secondary active:bg-card/90 border border-border items-center flex-row justify-center gap-2"
+                      className="mt-3 py-3 rounded-xl bg-card dark:bg-secondary active:bg-card/90 items-center flex-row justify-center gap-2 shadow-xs"
                     >
                       {/* <MoreVertical color={c.mutedForeground} size={18} /> */}
                       <Text className="text-sm font-semibold text-muted-foreground">
@@ -4026,9 +4031,28 @@ function ExpensesTab({ navigation }: { navigation: any }) {
 export default function App() {
   const colorScheme = useColorScheme();
   const c = useThemeColors();
+  const [themeReady, setThemeReady] = useState(false);
+
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(c.background);
+  }, [c.background]);
+
+  useEffect(() => {
+    AsyncStorage.getItem("theme_mode")
+      .then((saved) => {
+        if (saved === "light" || saved === "dark") {
+          Appearance.setColorScheme(saved);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setThemeReady(true));
+  }, []);
+
+  if (!themeReady) return null;
+
   return (
     <GluestackUIProvider mode={colorScheme === "light" ? "light" : "dark"}>
-      <StatusBar style={colorScheme === "light" ? "dark" : "light"} />
+      <StatusBar style="auto" />
       <View style={{ flex: 1, backgroundColor: c.background }}>
         <SafeAreaProvider style={{ backgroundColor: c.background }}>
           <FinanceProvider>

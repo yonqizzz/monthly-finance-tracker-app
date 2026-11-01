@@ -2,20 +2,20 @@
   "expo": {
     "name": "Finance Tracker",
     "slug": "finance-universal",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0D1210",
+    "backgroundColor": "#14100E",
     "ios": {
-      "backgroundColor": "#0D1210",
+      "backgroundColor": "#14100E",
       "supportsTablet": true,
       "bundleIdentifier": "com.yonqi.financeuniversal"
     },
     "android": {
-      "backgroundColor": "#0D1210",
+      "backgroundColor": "#14100E",
       "adaptiveIcon": {
-        "backgroundColor": "#F8F5EC",
+        "backgroundColor": "#FAF7F4",
         "foregroundImage": "./assets/wallet_icon_transparent.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -36,6 +36,22 @@
     "updates": {
       "url": "https://u.expo.dev/908a2a35-b85d-4a6b-b361-f2d69a36516b"
     },
-    "plugins": ["@react-native-google-signin/google-signin", "expo-sharing"]
+    "plugins": [
+      "@react-native-google-signin/google-signin",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/wallet_icon_transparent.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#FAF7F4",
+          "dark": {
+            "image": "./assets/wallet_icon_transparent.png",
+            "backgroundColor": "#14100E"
+          }
+        }
+      ]
+    ]
   }
 }
