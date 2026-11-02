@@ -3,10 +3,10 @@
 A personal finance app for managing monthly income, expenses and financial commitments. The app is built with Expo (React Native) and an Express backend that uses Gemini API to scan payslips and receipts.
 
 <p align="center">
-  <img width="220" alt="Dashboard" src="https://github.com/user-attachments/assets/d77d71c9-5b79-417c-a59f-d84d86f6f4b0" />
-  <img width="220" alt="Financial Commitments List View" src="https://github.com/user-attachments/assets/f6f10fef-d6c3-4a5e-9825-cfa706dd9ba6" />
-  <img width="220" alt="Financial Commitments Calendar View" src="https://github.com/user-attachments/assets/461b8447-168c-4bf8-bab3-963f824acac4" />
-  <img width="220" alt="Spending Overview" src="https://github.com/user-attachments/assets/d390d7b7-8199-4ff7-8e29-82cf874e260e" />
+  <img width="200" alt="Dashboard" src="https://github.com/user-attachments/assets/d77d71c9-5b79-417c-a59f-d84d86f6f4b0" />
+  <img width="200" alt="Financial Commitments List View" src="https://github.com/user-attachments/assets/f6f10fef-d6c3-4a5e-9825-cfa706dd9ba6" />
+  <img width="200" alt="Financial Commitments Calendar View" src="https://github.com/user-attachments/assets/461b8447-168c-4bf8-bab3-963f824acac4" />
+  <img width="200" alt="Spending Overview" src="https://github.com/user-attachments/assets/d390d7b7-8199-4ff7-8e29-82cf874e260e" />
 </p>
 
 ## Features
