@@ -17,7 +17,7 @@ A personal finance app for managing monthly income, expenses and financial commi
 - **AI document scan:** upload a payslip or receipt and the fields are extracted and categorized automatically
 - **Google Drive backup:** back up and restore your data with your own Google account
 
-## Demo
+## Demo (Android)
 
 <table>
   <tr>
